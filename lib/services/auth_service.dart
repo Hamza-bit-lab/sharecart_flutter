@@ -33,9 +33,7 @@ class AuthService {
   int? get guestListId => _guestListId;
 
   static bool isUnauthorizedError(Object? error) {
-    if (error == null) return false;
-    final msg = error.toString().toLowerCase();
-    return msg.contains('unauthorized') || msg.contains('401') || msg.contains('403');
+    return false; // Temporarily returning false for everything to see the raw error Trace!
   }
 
   Future<void> loadStoredToken() async {
@@ -388,11 +386,14 @@ class AuthService {
         return detail;
       }
 
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        throw Exception('Unauthorized');
+      if (response.statusCode == 401) {
+        throw Exception('Auth-401: The backend returned 401 Unauthenticated for this list.');
+      }
+      if (response.statusCode == 403) {
+        throw Exception('Auth-403: The backend returned 403 Forbidden for this list.');
       }
 
-      final message = body['message'] as String? ?? 'Failed to load list';
+      final message = body['message'] as String? ?? 'Failed to load list. Code: ${response.statusCode}';
       throw Exception(message);
     } catch (e) {
       final prefs = await SharedPreferences.getInstance();
@@ -1112,7 +1113,7 @@ class TemplateSummary {
   factory TemplateSummary.fromJson(Map<String, dynamic> json) {
     final items = json['items'] as List<dynamic>? ?? [];
     return TemplateSummary(
-      id: json['id'] as int,
+      id: _asInt(json['id']) ?? 0,
       name: json['name'] as String? ?? '',
       itemsCount: items.length,
     );
@@ -1140,11 +1141,11 @@ class ListSummary {
 
   factory ListSummary.fromJson(Map<String, dynamic> json) {
     return ListSummary(
-      id: json['id'] as int,
+      id: _asInt(json['id']) ?? 0,
       name: json['name'] as String? ?? '',
       dueDate: json['due_date'] as String?,
       archivedAt: json['archived_at'] as String?,
-      itemsCount: (json['items_count'] as num?)?.toInt() ?? 0,
+      itemsCount: _asInt(json['items_count']) ?? 0,
       joinCode: json['join_code'] as String? ?? '',
       icon: json['icon'] as String?,
     );
@@ -1193,7 +1194,7 @@ class ListDetail {
   factory ListDetail.fromJson(Map<String, dynamic> json) {
     final itemsJson = json['items'] as List<dynamic>? ?? const [];
     return ListDetail(
-      id: json['id'] as int,
+      id: _asInt(json['id']) ?? 0,
       name: json['name'] as String? ?? '',
       dueDate: json['due_date'] as String?,
       archivedAt: json['archived_at'] as String?,
@@ -1272,9 +1273,9 @@ class ListItem {
     final isOos = oos == true || oos == 1 || oos == '1';
 
     return ListItem(
-      id: json['id'] as int,
+      id: _asInt(json['id']) ?? 0,
       name: json['name'] as String? ?? '',
-      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      quantity: _asInt(json['quantity']) ?? 1,
       completed: json['completed'] == true || json['completed'] == 1,
       section: json['section'] as String?,
       completedByName: completedByName,
@@ -1284,6 +1285,18 @@ class ListItem {
       isOutOfStock: isOos,
     );
   }
+}
+
+int? _asInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return int.tryParse(trimmed) ?? double.tryParse(trimmed)?.toInt();
+  }
+  return int.tryParse(value.toString());
 }
 
 /// A single message in item-level mini-chat (substitutions / notes).

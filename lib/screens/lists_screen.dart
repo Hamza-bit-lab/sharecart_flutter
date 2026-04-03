@@ -310,10 +310,11 @@ class _ListsTabState extends State<_ListsTab> {
                               ? null
                               : '${pickedDate!.year}-${pickedDate!.month.toString().padLeft(2, '0')}-${pickedDate!.day.toString().padLeft(2, '0')}';
                           try {
+                            final iconToSend = selectedIcon != null ? (ListIconHelper.toEmoji(selectedIcon) ?? selectedIcon) : null;
                             final detail = await AuthService.instance.createList(
                               name,
                               dueDate: dueDate,
-                              icon: selectedIcon,
+                              icon: iconToSend,
                             );
                             if (!context.mounted) return;
                             Navigator.of(context).pop(detail);
